@@ -1,0 +1,2 @@
+Ich bin ein Beispiel-MIO, was für die Datenfreigabe verschlüsselt wird (d. h.
+ich bin der Plaintext).

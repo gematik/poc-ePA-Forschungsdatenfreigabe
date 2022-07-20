@@ -1,0 +1,50 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Schnittstelle zur Vertrauensstelle (VST)",
+    "description": "Schnittstelle zur Vertrauensstelle (VST)",
+    "version": "0.1.9"
+  },
+  "servers": [
+    {
+      "url": "http://api.example.com/v1",
+      "description": "hier kommt später noch die echte URL rein"
+    }
+  ],
+  "paths": {
+    "/epa/AN_und_LP": {
+      "post": {
+        "summary": "Das FdV lädt das vom AS (Komponente Autorisierung) erstellte signierte Tupel (AN+LP) zur VST hoch.",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Proxy-Header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "data": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created"
+          }
+        }
+      }
+    }
+  }
+}

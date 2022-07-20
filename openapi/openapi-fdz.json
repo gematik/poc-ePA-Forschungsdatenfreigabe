@@ -1,0 +1,108 @@
+{
+  "openapi": "3.0.2",
+  "info": {
+    "title": "Forschungsdatenzentrum",
+    "description": "Forschungsdatenzentrum (FDZ) Schnittstelle zur übertragung der pseudonymisierten medizinischen Daten (ePA)",
+    "version": "1"
+  },
+  "paths": {
+    "/epa/mio_upload/{AN}": {
+      "post": {
+        "tags": [
+          "mio_upload"
+        ],
+        "summary": "Mio Upload",
+        "operationId": "mio_upload_epa_mio_upload__AN__post",
+        "parameters": [
+          {
+            "required": true,
+            "schema": {
+              "title": "An",
+              "type": "string"
+            },
+            "name": "AN",
+            "in": "path"
+          },
+          {
+            "required": false,
+            "schema": {
+              "title": "Proxy-Token",
+              "type": "string"
+            },
+            "name": "proxy-token",
+            "in": "header"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "HTTPValidationError": {
+        "title": "HTTPValidationError",
+        "type": "object",
+        "properties": {
+          "detail": {
+            "title": "Detail",
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            }
+          }
+        }
+      },
+      "ValidationError": {
+        "title": "ValidationError",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "type": "object",
+        "properties": {
+          "loc": {
+            "title": "Location",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "mio_upload",
+      "description": "Upload der pseudonymisierten medizinischen Objekte (MIOs)"
+    }
+  ]
+}

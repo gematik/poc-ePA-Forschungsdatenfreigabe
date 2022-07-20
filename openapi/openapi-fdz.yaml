@@ -1,0 +1,512 @@
+openapi: 3.0.2
+info:
+  description: | 
+    **Forschungsdatenzentrum (FDZ) Schnittstelle zur Freigabe oder Wiederuf von pseudonymisierten medizinischen Daten (ePA)**
+  title: FDZ ePA MIO Management Service API v1
+  version: 1.0.0
+servers:
+  - url: https://rest.fdz.telematik
+paths:
+  /v1/epa/status:
+    get:
+      tags:
+        - monitoring
+      description: Check if the REST enpoint is running successfully
+      summary: Get the status of the REST endpoint
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: string
+                example: OK
+        500:
+          $ref: '#/components/responses/InternalServerError'
+  /v1/epa/mio/{p_document_id}:
+    post:
+      tags:
+        - ePA
+      summary: Upload a MIO (medizinischen Informationsobjekte) to the FDZ
+      description: |
+        Ein ePA-FdV verschlüsselt ein Datenobjekt (MIO), was das ePA-FdV im Rahmen der Datenfreigabe an das FDZ senden möchte.
+        Für den Widerruf der Datenfreigabe für dieses Datenobjekt erzeugt das ePA-FdV einen zufälligen 256-Bit langen Identifikator: p_document_id.
+        Es gelten für das ePA-FdV die in [gemSpec_Krypt# GS-A_4367 Qualität Zufallszahlenerzeugung] definierten Anforderungen an die Zufallserzeugung.
+        Den Identifikator kodiert das ePA-FdV hexadezimal (0-9a-f). 
+        Die ducrh das AS signierte Arbeitsnummer (AN/wn) übertragt das ePA-FdV im HTTP-Request-Header in der Variable Signed-WN
+        Das Chiffrat sendet das ePA-FdV per POST-Request auf den Pfadnamen /v1/epa/mio/{p_document_id}.
+        
+        Beispiel-Pfadname:
+        ```
+        /v1/epa/mio/8c330559bacd4f93678eede6779281c701b85fd8f7ed48b24e71f9b28dc1cf99 
+        ```
+        
+        Sollte das MIO aus mehreren Teildokumenten bestehen (bspw. Mutterpass) so werden diese Einzelbestandteile im ePA-FdV in ein JSON-Array zusammengeführt.
+        Beispiel:
+        ```
+        [{„p_document_id“: „YmQ5ZTllMGE0NDk2NDg1Mzk2OGU5YzMzZTU5YTViMGQzZTFlMmNkZDgwYmJhZTkwM2ZiNzIyOWQ3NjBhOGZiZSAqLQo=“}, Teil1, Teil2, ...]
+        ```
+        Wobei „Teil1“ das erste pseudonymisierte FHIR-Bundle ist usw..
+        Die pseudonymisierte Document-ID (p_document_id) wird vom ePA-FdV erzeugt und in der Akte gespeichert. 
+        Sie ermöglicht dem FDZ die Zuordnung von komplexeren Datenstrukturen (Teildokumenten bspw. bei mehreren Mütterpässen), ohne die Document-IDs der MIOs in der ePA kennen zu müssen.
+        
+        Das so entstandene JSON-Array ist dann der zu verschlüsselnde Klartext, der in seiner Gesamtheit das gesamte MIO bildet. Dieser Klartext wird dann verschlüsselt. 
+        Das Chiffrat sendet das ePA-FdV im Request-Body mit dem Content-Type: application/octet-stream.
+        Das FDZ nimmt die Datenobjekte (signierte wn, p_document_id, Chiffrat) entgegen und speichert diese lokal als Tupel ab.
+        
+        Ein Beispiel HTTP-Request:
+        
+        ```
+        POST /v1/epa/mio/2b707157f903ad60661f64d4b7f8d94951a24cb73bc8ad21e8742543ce1f6a6a
+        HTTP/1.1
+        Host: 127.0.0.1:20003
+        User-Agent: python-requests/2.27.1
+        Accept-Encoding: gzip, deflate
+        Accept: */*
+        Connection: keep-alive
+        Signed-WN: eyJhbGciOiAiRVMyNTYiLCAieDVjIjogWyJNSUlDQWpDQ0Fha0NGRmUyTVRZVXJYMj
+        hVN2FYSm9XemIrWEYzcTlyTUFvR0NDcUdTTTQ5QkFNQ01IQXhDekFKQmdOVkJBWVRBa1JGTVE4d0RRWU 
+        RWUVFJREFaQ1pYSnNhVzR4RHpBTkJnTlZCQWNNQmtKbGNteHBiakVRTUE0R0ExVUVDZ3dIWjJWdFlYUn 
+        BhekVRTUE0R0ExVUVDd3dIWjJWdFlYUnBhekViTUJrR0ExVUVBd3dTUzI5dGNHOXVaVzUwWlc0dFVFdE 
+        pMVU5CTUI0WERUSXlNRE13TVRFek5USXpPRm9YRFRJek1ETXdNVEV6TlRJek9Gb3dnWll4Q3pBSkJnTl 
+        ZCQVlUQWtSRk1ROHdEUVlEVlFRSURBWkNaWEpzYVc0eER6QU5CZ05WQkFjTUJrSmxjbXhwYmpFWU1CWU 
+        dBMVVFQ2d3UFpWQkJJRUZyZEdWdWMzbHpkR1Z0TVNFd0h3WURWUVFMREJoTGIyMXdiMjVsYm5SbElFRj
+        FkRzl5YVhOcFpYSjFibWN4S0RBbUJnTlZCQU1NSDJWUVFTMUJVeUJMYjIxd2IyNWxiblJsSUVGMWRHOX 
+        lhWE5wWlhKMWJtY3dXakFVQmdjcWhrak9QUUlCQmdrckpBTURBZ2dCQVFjRFFnQUVraytOUDY4QWVVMX 
+        R6cis1UEFVZWtwWjNyTGtqU2h2ODhVSkpEQkFTSDh4emlYTU84TW1aU0p5SHZXRng0NlB4Rm80SU5CZm 
+        Ercmh2dXBUTkhmbm9WakFLQmdncWhrak9QUVFEQWdOSEFEQkVBaUI5ZXpNMEtBckIwWU9XVi9YeGV6eD 
+        hYNTVtdi9ZN1Rld2dxRUJSS0psV2xnSWdJckdZa1QvdStZWjdieStVOE5lVHAzN28xWkZRMkJ2NStLL3 
+        paZGlmQUFjPSJdfQ.eyJ3biI6ICJhYzA2MzFlMjRmYWMwMjVmMjRkOWE1MDdjMDNkYmIyMzMyZTJlNzg
+        xZTcwMDRmMzBiZTk2YTM5NjA5MmEzMzU0IiwgIm5iZiI6IDE2NDg5NzU4MTAuNjYyMzI0LCAiaWF0Ijo 
+        gMTY0ODk3NTgxMC42NjIzMjQsICJleHAiOiAxNjQ5MDYyMjEwLjY2MjMyNH0.MEQCIFVQ-9dNivq9msj
+        DJrraEWbvz9l3qyceS9Br8qhzi79WAiBQL-wPTq2vTzi0l7k03z-0lXl-n_Gac74Lygp-gKbAGg
+        Content-Type: application/octet-stream
+        Content-Length: 197
+        
+        .!S30..L.{^%.,..d.2.[wez......
+        ..(*;d ..Mp ...! ..... ..Z. ...W GQ... .m.. .oI. .M"* ^..P. .."q .... w... ?.p.6 \.#
+        J(......{=.o...8,Js.,2.\.K...\...ECLB...qv...N*....l.2...m..A....D~2..........dE.....
+        5..t.L..JU
+        ```
+
+      parameters:
+        - $ref: '#/components/parameters/PseudonymizedDocumentId'
+        - $ref: '#/components/parameters/SignedWorkingNumber'
+      requestBody:
+        required: true
+        description: The payload presenting the {encrypted MIOs (cypher), signierte WN, p_document_id}
+        content:
+          application/octet-stream:
+            schema:
+              description: The payload presenting the {encrypted MIOs (cypher), signierte WN, p_document_id}
+      responses:
+        201:
+          description: Upload is successfull
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: OK
+        400:
+          $ref: '#/components/responses/BadRequest'
+        401:
+          $ref: '#/components/responses/Unauthorized'
+        403:
+          $ref: '#/components/responses/Forbidden'
+        429:
+          $ref: '#/components/responses/TooManyRequests'
+        500:
+          $ref: '#/components/responses/InternalServerError'
+    delete:
+      tags:
+        - ePA
+      summary: Request to delete the MIO(s) referenced by the given p_document_id
+      description: |
+      parameters:
+        - $ref: "#/components/parameters/PseudonymizedDocumentId"
+        - $ref: '#/components/parameters/SignedWorkingNumber'
+      responses:
+        200:
+          description:  Delete of the referenced MIO(s) is successfull
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: OK
+        202:
+          description: Accepted. The action will likely succeed but has not yet been enacted.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: OK
+        404:
+          $ref: '#/components/responses/NotFound'
+        400:
+          $ref: '#/components/responses/BadRequest'
+        401:
+          $ref: '#/components/responses/Unauthorized'
+        403:
+          $ref: '#/components/responses/Forbidden'
+        429:
+          $ref: '#/components/responses/TooManyRequests'
+        500:
+          $ref: '#/components/responses/InternalServerError'
+  /v1/epa/mios:
+    delete:
+      tags:
+        - ePA
+      summary: Delete all MIO(s) objects assoacited to a given list of p_document_id
+      parameters:
+        - $ref: '#/components/parameters/SignedWorkingNumber'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              example: ["05f18bf4b10b83540f656ee1051aa294cf522ea674ccf0c44bb36d45ed4d35b5",
+                         "3c6e9470611fa7517702ff9fe19b626adbf0a7e367378c7095f25a846b2e3d56"]
+      responses:
+        200:
+          description:  Delete of the referenced MIO(s) is successfull
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: OK
+        202:
+          description: Accepted. The action will likely succeed but has not yet been enacted.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: OK
+        404:
+          $ref: '#/components/responses/NotFound'
+        400:
+          $ref: '#/components/responses/BadRequest'
+        401:
+          $ref: '#/components/responses/Unauthorized'
+        403:
+          $ref: '#/components/responses/Forbidden'
+        429:
+          $ref: '#/components/responses/TooManyRequests'
+        500:
+          $ref: '#/components/responses/InternalServerError'
+  /v1/epa/certificate:
+    get:
+      tags:
+        - certificate
+      summary: Get the actual FDZ encryption certificate
+      description: |
+        Ein Client (ePA-FdV) erhält vom FDZ über den Pfadnamen /v1/epa/certificate das aktuelle Verschlüsselungszertifikat des FDZ.
+        Unter diesem Pfadnamen gibt das FDZ das Zertifikat DER-kodiert mit dem Content-Type: application/pkix-cert [RFC-2582] zurück.
+        Das Verschlüsselungszertifikat ist ein Zertifikat aus der TI-PKI (OID:oid_epa_fdz).
+        Das ePA-FdV bezieht das Zertifikat im Rahmen der Datenfreigaben, um den öffentlichen Verschlüsselungsschlüssel des FDZ für die Verschlüsselung der pseudonymsierten medizinischen Daten zu verwenden.
+        Das ePA-FdV muss das Zertifikat vor der Verwendung des öffentlichen Schlüssels gemäß der auch jetzt schon für das ePA-FdV geltenden Vorgaben zur Zertifikatsprüfung der TI-PKI prüfen (Rollenprüfung OID: oid_epa_fdz). 
+        Bei einen nicht-positiven Prüfergebnis darf das ePA-FdV das Zertifikat und dessen Attribute nicht verwenden.
+      responses:
+        200:
+          description: OK
+          content:
+            application/pkix-cert:
+              schema:
+                type: string
+                format: DER
+        500:
+          $ref: '#/components/responses/InternalServerError'
+        404:
+          $ref: '#/components/responses/NotFound'
+components:
+  schemas:
+    KeyValue:
+      type: object
+      properties:
+        key:
+          type: string
+          example: key
+        value:
+          type: string
+          example: value
+  responses:
+    BadRequest:
+      description: Bad Request - indicates that request failed fast validation e.g.
+        invalid mio schema or unsupported mio format
+      content:
+        application/json:
+          schema:
+            type: object
+            description: Response in case of error
+            properties:
+              title:
+                type: string
+                description: Human readable error description
+                example: Input data failed validation
+              status:
+                type: integer
+                description: HTTP status code
+                example: 400
+              code:
+                type: string
+                description: Error code
+                example: E501001
+              cause:
+                type: string
+                description: Human readable explanation for the error
+                example: Invalid MIO Schema for Imfpass
+              action:
+                type: string
+                description: Human readable action for the user
+                example: Request a valid container name
+            additionalProperties:
+              $ref: '#/components/schemas/KeyValue'
+            required:
+              - title
+              - status
+              - code
+              - cause
+              - action
+    TooManyRequests:
+      description: Data Provider service received too many requests in a given amount
+        of time
+      content:
+        application/json:
+          schema:
+            type: object
+            description: Response in case of error
+            properties:
+              title:
+                type: string
+                description: Human readable error description
+                example: Too many requests
+              status:
+                type: integer
+                description: HTTP status code
+                example: 429
+              code:
+                type: string
+                description: Error code
+                example: E501029
+              cause:
+                type: string
+                description: Human readable explanation for the error
+                example: Data Provider service received too many requests in a given
+                  amount of time
+              action:
+                type: string
+                description: Human readable action for the user
+                example: Try again later or contact support team
+            additionalProperties:
+              $ref: '#/components/schemas/KeyValue'
+            required:
+              - title
+              - status
+              - code
+              - cause
+              - action
+    Unauthorized:
+      description: Authorization problem
+      content:
+        application/json:
+          schema:
+            type: object
+            description: Response in case of error
+            properties:
+              title:
+                type: string
+                description: Human readable error description
+                example: Authorization problem
+              status:
+                type: integer
+                description: HTTP status code
+                example: 401
+              code:
+                type: string
+                description: Error code
+                example: E501002
+              cause:
+                type: string
+                description: Human readable explanation for the error
+                example: Provided access token is not valid
+              action:
+                type: string
+                description: Human readable action for the user
+                example: Provide valid token
+            additionalProperties:
+              $ref: '#/components/schemas/KeyValue'
+            required:
+              - title
+              - status
+              - code
+              - cause
+              - action
+    Forbidden:
+      description: The request was understood, but was refused
+      content:
+        application/json:
+          schema:
+            type: object
+            description: Response in case of error
+            properties:
+              title:
+                type: string
+                description: Human readable error description
+                example: Access Denied You don't have permission to access
+              status:
+                type: integer
+                description: HTTP status code
+                example: 403
+              code:
+                type: string
+                description: Error code
+                example: E501004
+              cause:
+                type: string
+                description: Human readable explanation for the error
+                example: You don't have permission to access
+              action:
+                type: string
+                description: Human readable action for the user
+                example: Please contact support team
+            additionalProperties:
+              $ref: '#/components/schemas/KeyValue'
+            required:
+              - title
+              - status
+              - code
+              - cause
+              - action
+    InternalServerError:
+      description: The server was unable to complete the request due to an unexpected
+        condition or error
+      content:
+        application/json:
+          schema:
+            type: object
+            description: Response in case of error
+            properties:
+              title:
+                type: string
+                description: Human readable error description
+                example: Internal Server Error
+              status:
+                type: integer
+                description: HTTP status code
+                example: 500
+              code:
+                type: string
+                description: Error code
+                example: E501500
+              cause:
+                type: string
+                description: Human readable explanation for the error
+                example: The server was unable to complete the request due to an unexpected
+                  condition or error
+              action:
+                type: string
+                description: Human readable action for the user
+                example: Try again later or contact support team
+            additionalProperties:
+              $ref: '#/components/schemas/KeyValue'
+            required:
+              - title
+              - status
+              - code
+              - cause
+              - action
+    NotFound:
+      description: Resource Not Found
+      content:
+        application/json:
+          schema:
+            type: object
+            description: Response in case of error
+            properties:
+              title:
+                type: string
+                description: Human readable error description
+                example: Refused
+              status:
+                type: integer
+                description: HTTP status code
+                example: 404
+              code:
+                type: string
+                description: Error code
+                example: E501505
+              cause:
+                type: string
+                description: Human readable explanation for the error
+                example: The request ressource is not found
+              action:
+                type: string
+                description: Human readable action for the user
+                example: Please, contact support team
+            additionalProperties:
+              $ref: '#/components/schemas/KeyValue'
+            required:
+              - title
+              - status
+              - code
+              - cause
+              - action
+  parameters:
+    PseudonymizedDocumentId:
+      in: path
+      name: p_document_id
+      description: A pseudonymised document id is a 256 bit random identifier provided by the ePA-FdV in a hexadecimal code.
+      required: true
+      schema:
+        type: string
+        example: 2b707157f903ad60661f64d4b7f8d94951a24cb73bc8ad21e8742543ce1f6a6a
+    SignedWorkingNumber:
+      in: header
+      name: Signed-WN
+      description: |
+        Bei der Übertragung von Dokumenten (MIOs) an das FDZ und dem Widerruf der Datenfreigabe für diese
+        Dokumente muss an das FDZ eine signierte Arbeitsnummer an das FDZ im HTTP-Request-Header mittels
+        der Variable Signed-WN übergeben werden.
+        Die Arbeitsnummer wird dabei als durch das AS ECDSA-signiertes JWT [RFC-7515] kodiert.
+        | Transporttoken          | Claim Name | Claim | Hinweis |
+        |-------------------------|------------|-------|---------|
+        |  ``Protected Header``   |            |       |         |
+        |                         | "typ"      | "JWT" |         |
+        |                         | "alg"      |"ES256"|         |
+        |                         | "x5c"      | Signaturzertifikat eines Aktensystems (Komponente Autorisierung)(TI-PKI Zertifikatsprofil ID.FD.SIG)||
+        | ``Payload``             |            |       |         |
+        |                         |"iss"       | "https://authorization.aktensystem.ti" |         |
+        |                         |"iat" | Zeitstempel Ausgabezeitpunkt| vgl. [RFC-7519]|
+        |                         |"exp" | Zeitstempel Verfallzeitpunkt | vgl. [RFC-7519]|
+        |                         |"wn" | Arbeitsnummer (working number) |base64 kodiert |
+      required: true
+      schema:
+        type: string
+        example: |
+          eyJhbGciOiAiRVMyNTYiLCAieDVjIjogWyJNSUlDQWpDQ0Fha0NGRmUyTVRZVXJYMj 
+          hVN2FYSm9XemIrWEYzcTlyTUFvR0NDcUdTTTQ5QkFNQ01IQXhDekFKQmdOVkJBWVRBa1JGTVE4d0RRWU RWUVFJREFaQ1pYSnNhVzR4RHpBTkJnTlZCQWNNQmtKbGNteHBiakVRTUE0R0ExVUVDZ3dIWjJWdFlYUn 
+          BhekVRTUE0R0ExVUVDd3dIWjJWdFlYUnBhekViTUJrR0ExVUVBd3dTUzI5dGNHOXVaVzUwWlc0dFVFdE pMVU5CTUI0WERUSXlNRE13TVRFek5USXpPRm9YRFRJek1ETXdNVEV6TlRJek9Gb3dnWll4Q3pBSkJnTl ZCQVlUQWtSRk1ROHdEUVlEVlFRSURBWkNaWEpzYVc0eER6QU5CZ05WQkFjTUJrSmxjbXhwYmpFWU1CWU dBMVVFQ2d3UFpWQkJJRUZyZEdWdWMzbHpkR1Z0TVNFd0h3WURWUVFMREJoTGIyMXdiMjVsYm5SbElFRj FkRzl5YVhOcFpYSjFibWN4S0RBbUJnTlZCQU1NSDJWUVFTMUJVeUJMYjIxd2IyNWxiblJsSUVGMWRHOX lhWE5wWlhKMWJtY3dXakFVQmdjcWhrak9QUUlCQmdrckpBTURBZ2dCQVFjRFFnQUVraytOUDY4QWVVMX R6cis1UEFVZWtwWjNyTGtqU2h2ODhVSkpEQkFTSDh4emlYTU84TW1aU0p5SHZXRng0NlB4Rm80SU5CZm Ercmh2dXBUTkhmbm9WakFLQmdncWhrak9QUVFEQWdOSEFEQkVBaUI5ZXpNMEtBckIwWU9XVi9YeGV6eD hYNTVtdi9ZN1Rld2dxRUJSS0psV2xnSWdJckdZa1QvdStZWjdieStVOE5lVHAzN28xWkZRMkJ2NStLL3 paZGlmQUFjPSJdfQ.eyJ3biI6ICJhYzA2MzFlMjRmYWMwMjVmMjRkOWE1MDdjMDNkYmIyMzMyZTJlNzg 
+          xZTcwMDRmMzBiZTk2YTM5NjA5MmEzMzU0IiwgIm5iZiI6IDE2NDg5NzU4MTAuNjYyMzI0LCAiaWF0Ijo gMTY0ODk3NTgxMC42NjIzMjQsICJleHAiOiAxNjQ5MDYyMjEwLjY2MjMyNH0.MEQCIFVQ-9dNivq9msj 
+          DJrraEWbvz9l3qyceS9Br8qhzi79WAiBQL-wPTq2vTzi0l7k03z-0lXl-n_Gac74Lygp-gKbAGg
+
+
+
+
+
+
+

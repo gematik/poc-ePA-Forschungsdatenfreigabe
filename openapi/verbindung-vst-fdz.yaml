@@ -1,0 +1,338 @@
+openapi: 3.0.2
+info:
+  description: "Forschungsdatenzentrum (FDZ) Schnittstelle zur Vertrauensstelle (VST)"
+  title: FDZ VST Management Service API v1
+  version: 1.0.0
+servers:
+  - url: https://rest.fdz.telematik
+paths:
+  /v1/vst/status:
+    get:
+      tags:
+        - monitoring
+      summary: Get the status of the REST endpoint
+      description: Check if the REST enpoint is running successfully
+      responses:
+        200:
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: string
+                example: OK
+        500:
+          $ref: '#/components/responses/InternalServerError'
+  /v1/vst/pp:
+    post:
+      tags:
+        - tuple (pp, wn)
+      summary: Upload the tuple (pp, wn) from VST to FDZ
+      description: |
+        Die VST nimmt die vom AS erzeugten und signierten Auftragsnummer-Lieferpseudonym-Tupel vom ePA- FdV entgegen. 
+        Die VST erzeugt aus dem LP mit Hilfe seines privaten Schlüssels das periodenübergreifende Pseudonym (PP).
+        Anschließend erzeugt die VST ein Tupel (PP, AN). Dieses Tupel muss Authentizitäts- und Integritätsgeschützt vom VST an das FDZ transportiert werden. 
+        Dafür besitzen die VST und das FDZ ein gemeinsames Geheimnis (symmetrischer Schlüssel). Die VST erstellt ein JSON-Web-Token [RFC- 7519] mit folgender Struktur.
+        | Transporttoken VST-FDZ  | Claim Name | Claim | Hinweis |
+        |-------------------------|------------|-------|---------|
+        |  ``Protected Header``   |            |       |         |
+        |                         | "typ"      | "JWT" |         |
+        |                         | "alg"      |"HS256"|         |
+        | ``Payload``             |            |       |         |
+        |                         | "iss"       | "VST" |        |
+        |                         | "iat" | Zeitstempel Ausgabezeitpunkt| vgl. [RFC-7519]|
+        |                         | "exp" | Zeitstempel Verfallzeitpunkt | vgl. [RFC-7519]|
+        |                         | "wn" | Arbeitsnummer (working number) |base64 kodiert |
+        |                         | "pp" |Periodenübergreifendes Pseudonym | base64 kodiert |
+        Das JWT wird über den HMAC-SHA256-Mechanismus [RFC-7519] und mittels des gemeinsamen Geheimnisses authentizitäts- und integritätsgeschützt.
+        Das so erzeugte und authentisierte JWT wird anschließend mit dem öffentlichen Schlüssel aus dem FDZ- Verschlüsselungszertifikat verschlüsselt. 
+        Das Chiffrat wird mittels der HTTP-POST-Methode an /v1/vst/pp gesendet mit dem Content-Type: application/octet-stream.
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              description: encrypted jwt (json web token) containing the tupel (pp, wn)
+      responses:
+        201:
+          description: Upload of the tupel (PP, WN) is successfull
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: OK
+        500:
+          $ref: '#/components/responses/InternalServerError'
+        400:
+          $ref: '#/components/responses/BadRequest'
+        401:
+          $ref: '#/components/responses/Unauthorized'
+        403:
+          $ref: '#/components/responses/Forbidden'
+        429:
+          $ref: '#/components/responses/TooManyRequests'
+  /v1/vst/certificate:
+    get:
+      tags:
+        - certificate
+      summary: Get the actual FDZ encryption certificate
+      description: |
+        Ein Client (VST) erhält vom FDZ über den Pfadnamen /v1/vst/certificate das aktuelle Verschlüsselungszertifikat des FDZ.
+        Unter diesem Pfadnamen gibt das FDZ das Zertifikat DER-kodiert mit dem Content-Type: application/pkix-cert [RFC-2582] zurück.
+        Das Verschlüsselungszertifikat ist ein Zertifikat aus der TI-PKI (OID:oid_epa_fdz).
+        Das ePA-FdV bezieht das Zertifikat im Rahmen der Datenfreigaben, um den öffentlichen Verschlüsselungsschlüssel des FDZ für die Verschlüsselung der pseudonymsierten medizinischen Daten zu verwenden.
+        Das ePA-FdV muss das Zertifikat vor der Verwendung des öffentlichen Schlüssels gemäß der auch jetzt schon für das ePA-FdV geltenden Vorgaben zur Zertifikatsprüfung der TI-PKI prüfen (Rollenprüfung OID: oid_epa_fdz). 
+        Bei einen nicht-positi- ven Prüfergebnis darf das ePA-FdV das Zertifikat und dessen Attribute nicht verwenden.
+      responses:
+        200:
+          description: OK
+          content:
+            application/pkix-cert:
+              schema:
+                type: string
+                format: DER
+        500:
+          $ref: '#/components/responses/InternalServerError'
+        404:
+          $ref: '#/components/responses/NotFound'
+components:
+  schemas:
+    KeyValue:
+      type: object
+      properties:
+        key:
+          type: string
+          example: key
+        value:
+          type: string
+          example: value
+  responses:
+    BadRequest:
+      description: Bad Request - indicates that request failed fast validation e.g.
+        invalid Working number
+      content:
+        application/json:
+          schema:
+            type: object
+            description: Response in case of error
+            properties:
+              title:
+                type: string
+                description: Human readable error description
+                example: Input data failed validation
+              status:
+                type: integer
+                description: HTTP status code
+                example: 400
+              code:
+                type: string
+                description: Error code
+                example: E501001
+              cause:
+                type: string
+                description: Human readable explanation for the error
+                example: Working number is not valid
+              action:
+                type: string
+                description: Human readable action for the user
+                example: Request a valid container name
+            additionalProperties:
+              $ref: '#/components/schemas/KeyValue'
+            required:
+              - title
+              - status
+              - code
+              - cause
+              - action
+    TooManyRequests:
+      description: Data Provider service received too many requests in a given amount
+        of time
+      content:
+        application/json:
+          schema:
+            type: object
+            description: Response in case of error
+            properties:
+              title:
+                type: string
+                description: Human readable error description
+                example: Too many requests
+              status:
+                type: integer
+                description: HTTP status code
+                example: 429
+              code:
+                type: string
+                description: Error code
+                example: E501029
+              cause:
+                type: string
+                description: Human readable explanation for the error
+                example: Data Provider service received too many requests in a given
+                  amount of time
+              action:
+                type: string
+                description: Human readable action for the user
+                example: Try again later or contact support team
+            additionalProperties:
+              $ref: '#/components/schemas/KeyValue'
+            required:
+              - title
+              - status
+              - code
+              - cause
+              - action
+    Unauthorized:
+      description: Authorization problem
+      content:
+        application/json:
+          schema:
+            type: object
+            description: Response in case of error
+            properties:
+              title:
+                type: string
+                description: Human readable error description
+                example: Authorization problem
+              status:
+                type: integer
+                description: HTTP status code
+                example: 401
+              code:
+                type: string
+                description: Error code
+                example: E501002
+              cause:
+                type: string
+                description: Human readable explanation for the error
+                example: Provided access token is not valid
+              action:
+                type: string
+                description: Human readable action for the user
+                example: Provide valid token
+            additionalProperties:
+              $ref: '#/components/schemas/KeyValue'
+            required:
+              - title
+              - status
+              - code
+              - cause
+              - action
+    Forbidden:
+      description: The request was understood, but was refused
+      content:
+        application/json:
+          schema:
+            type: object
+            description: Response in case of error
+            properties:
+              title:
+                type: string
+                description: Human readable error description
+                example: Access Denied You don't have permission to access
+              status:
+                type: integer
+                description: HTTP status code
+                example: 403
+              code:
+                type: string
+                description: Error code
+                example: E501004
+              cause:
+                type: string
+                description: Human readable explanation for the error
+                example: You don't have permission to access
+              action:
+                type: string
+                description: Human readable action for the user
+                example: Please contact support team
+            additionalProperties:
+              $ref: '#/components/schemas/KeyValue'
+            required:
+              - title
+              - status
+              - code
+              - cause
+              - action
+    InternalServerError:
+      description: The server was unable to complete the request due to an unexpected
+        condition or error
+      content:
+        application/json:
+          schema:
+            type: object
+            description: Response in case of error
+            properties:
+              title:
+                type: string
+                description: Human readable error description
+                example: Internal Server Error
+              status:
+                type: integer
+                description: HTTP status code
+                example: 500
+              code:
+                type: string
+                description: Error code
+                example: E501500
+              cause:
+                type: string
+                description: Human readable explanation for the error
+                example: The server was unable to complete the request due to an unexpected
+                  condition or error
+              action:
+                type: string
+                description: Human readable action for the user
+                example: Try again later or contact support team
+            additionalProperties:
+              $ref: '#/components/schemas/KeyValue'
+            required:
+              - title
+              - status
+              - code
+              - cause
+              - action
+    NotFound:
+      description: Resource Not Found
+      content:
+        application/json:
+          schema:
+            type: object
+            description: Response in case of error
+            properties:
+              title:
+                type: string
+                description: Human readable error description
+                example: Refused
+              status:
+                type: integer
+                description: HTTP status code
+                example: 404
+              code:
+                type: string
+                description: Error code
+                example: E501505
+              cause:
+                type: string
+                description: Human readable explanation for the error
+                example: The request ressource is not found
+              action:
+                type: string
+                description: Human readable action for the user
+                example: Please, contact support team
+            additionalProperties:
+              $ref: '#/components/schemas/KeyValue'
+            required:
+              - title
+              - status
+              - code
+              - cause
+              - action
+
+
+
+
+
+

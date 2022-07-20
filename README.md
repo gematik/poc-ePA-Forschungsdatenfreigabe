@@ -1,92 +1,142 @@
-# poc-ePA-Forschungsdatenfreigabe
+# Forschungsdatenfreigabe elektronisch Patientenakte
 
-Beispielimplementierung zur Verwendung der Schnittstellen des Forschungsdatenzentrums und der Vertrauensstelle für die Freigabe von Forschungsdaten durch ein ePA-FdV
+Wie in [gemF\_ePA\_FDZ\_Anbindung](https://fachportal.gematik.de)
+überblicksartig dargstellt, können bei Einwilligung der versicherten Person auf
+dem ePA-Frontend des Versicherten (ePA-FdV) medizinische Daten zunächst
+anonymisiert werden und diese dann mit Hilfe einer Vertrauensstelle (VST,
+verantwortet vom RKI) pseudonymisiert werden. Diese pseudonymisierten
+medizinischen Daten werden dann vom ePA-FdV an das Forschungsdatenzentrum (FDZ, verantwortet vom BfArM)
+gesendet.
 
-## Getting started
+## Beispiel-Implementierung Schnittstellen
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+Vertrauensstelle: [vst.py](vst.py),
+[Erläuterungen zur Schnittstelle](README-VST.md),
+[VST-OpenAPI-Spezifikation (YAML)](openapi/openapi-vst.yaml),
+[VST-OpenAPI-Spezifikation (JSON)](openapi/openapi-vst.json)
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+Forschungsdatenzentrum: [fdz.py](vst.py),
+[Erläuterungen zur Schnittstelle](README-FDZ.md),
+[FDZ-OpenAPI-Spezifikation (YAML)](openapi/openapi-fdz.yaml),
+[FDZ-OpenAPI-Spezifikation (JSON)](openapi/openapi-fdz.json)
 
-## Add your files
+ePA Frontend des Versicherten: [epa-fdv.py](epa-fdv.py)
 
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/ee/gitlab-basics/add-file.html#add-a-file-using-the-command-line) or push an existing Git repository with the following command:
+ePA Aktensystem: [as.py](as.py) (Notwendig für die Erzeugung der Auftragsnummer (AN), des Lieferpseudonyms (LP) und des
+Proxy-Tokens)
 
-```
-cd existing_repo
-git remote add origin https://gitlab.prod.ccs.gematik.solutions/git/refImpl/epa/poc-epa-forschungsdatenfreigabe.git
-git branch -M main
-git push -uf origin main
-```
+### Docker-Image
 
-## Integrate with your tools
+Eine lokale Instanz kann man auch leicht mit
+dem [Dockerimage](https://hub.docker.com/r/gematik1/epa-forschungsdatenfreigabe-poc)
+starten
 
-- [ ] [Set up project integrations](https://gitlab.prod.ccs.gematik.solutions/git/refImpl/epa/poc-epa-forschungsdatenfreigabe/-/settings/integrations)
+    docker pull gematik1/epa-forschungsdatenfreigabe-poc:1.0.0
+    docker run -it --entrypoint /bin/bash gematik1/epa-forschungsdatenfreigabe-poc:1.0.0
 
-## Collaborate with your team
+Dann hat man eine interaktive Shell in der man eingibt:
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Automatically merge when pipeline succeeds](https://docs.gitlab.com/ee/user/project/merge_requests/merge_when_pipeline_succeeds.html)
+    ./start.sh
+    ./epa-fdv
 
-## Test and Deploy
+Toll.
 
-Use the built-in continuous integration in GitLab.
+Wenn man tiefer einsteigen möchte, mit
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/index.html)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing(SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+    tmux at
 
-***
+in die tmux-session gehen und mit Ctrl+A plus 1 bis 4 zwischen den Fenstern
+hin und her schalten. D. h., `Ctrl+A 1` geht ins das erste Fenstern etc.
 
-# Editing this README
+### Komponenten/Services per "Hand" starten
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!).  Thank you to [makeareadme.com](https://www.makeareadme.com/) for this template.
+Wer nicht das Docker-Image verwenden möchte, kann die REST-Services auch per "Hand" starten:
 
-## Suggestions for a good README
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+    ./as.py
+    ./vst.py
+    ./fdz.py
 
-## Name
-Choose a self-explaining name for your project.
+### Beispieldurchlauf
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+    [a@h fdz]$ ./epa-fdv.py 
+    Beim AS (http://127.0.0.1:20001/datenfreigabe/token) (1) ein signiertes AN+LP-Tupel und  (2) signierte AN beziehen.
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+    Ergebnis: (1) eyJhbGciOiAiRVMyNTYiLCAieDVjIjogWyJNSUlDQWpDQ0Fha0NGRmUyTVRZVX
+    JYMjhVN2FYSm9XemIrWEYzcTlyTUFvR0NDcUdTTTQ5QkFNQ01IQXhDekFKQmdOVkJBWVRBa1JGTVE4d0
+    RRWURWUVFJREFaQ1pYSnNhVzR4RHpBTkJnTlZCQWNNQmtKbGNteHBiakVRTUE0R0ExVUVDZ3dIWjJWdF
+    lYUnBhekVRTUE0R0ExVUVDd3dIWjJWdFlYUnBhekViTUJrR0ExVUVBd3dTUzI5dGNHOXVaVzUwWlc0dF
+    VFdEpMVU5CTUI0WERUSXlNRE13TVRFek5USXpPRm9YRFRJek1ETXdNVEV6TlRJek9Gb3dnWll4Q3pBSk
+    JnTlZCQVlUQWtSRk1ROHdEUVlEVlFRSURBWkNaWEpzYVc0eER6QU5CZ05WQkFjTUJrSmxjbXhwYmpFWU
+    1CWUdBMVVFQ2d3UFpWQkJJRUZyZEdWdWMzbHpkR1Z0TVNFd0h3WURWUVFMREJoTGIyMXdiMjVsYm5SbE
+    lFRjFkRzl5YVhOcFpYSjFibWN4S0RBbUJnTlZCQU1NSDJWUVFTMUJVeUJMYjIxd2IyNWxiblJsSUVGMW
+    RHOXlhWE5wWlhKMWJtY3dXakFVQmdjcWhrak9QUUlCQmdrckpBTURBZ2dCQVFjRFFnQUVraytOUDY4QW
+    VVMXR6cis1UEFVZWtwWjNyTGtqU2h2ODhVSkpEQkFTSDh4emlYTU84TW1aU0p5SHZXRng0NlB4Rm80SU
+    5CZmErcmh2dXBUTkhmbm9WakFLQmdncWhrak9QUVFEQWdOSEFEQkVBaUI5ZXpNMEtBckIwWU9XVi9YeG
+    V6eDhYNTVtdi9ZN1Rld2dxRUJSS0psV2xnSWdJckdZa1QvdStZWjdieStVOE5lVHAzN28xWkZRMkJ2NS
+    tLL3paZGlmQUFjPSJdfQ.eyJ3biI6ICJNajlzb0JZVUNhU2Jmajc0TUxjWWhwaGZUUHM0OTlzTDFRZWF
+    wR2VhRDlNPSIsICJkcCI6ICJBUmNNeFozT2dicllXUG1RcWdCV1ljdmdzOXdkVWZ4YjFlaTRBT0dhWmp
+    rSUdtRTdjTE9YdkN5Tklwb3VhQy80cVhnMXhqZDRMdEV2ZnlVV1F5MjBhTzRGWTJmb2xXMGY5ODdVUkx
+    UMWJXeUkvOGtMeGRaTjVDMVl6d2hQeFJJVC9mVHllZ3lMY1E9PSIsICJ2c3RfY2VydF9oYXNoIjogIkJ
+    tcjM1TkQzdzVrZW9LMVF0VVNLNmNrRC91M3RBYXJ1NkhuaEYxTThWNnM9IiwgIm5iZiI6IDE2NDk5MTQ
+    0MTcuNTg5NTQ0LCAiaWF0IjogMTY0OTkxNDQxNy41ODk1NDQsICJleHAiOiAxNjUwMDAwODE3LjU4OTU
+    0NH0.MEUCIFeqbMq0-vN0UwimkeD9YoTy_7gQftubs6bR76hfIzlrAiEAo18W84UG6BXL2nM1__iqxjf
+    RQzU3q27cX5-mVV-0DUI
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+    Ergebnis: (2) eyJhbGciOiAiRVMyNTYiLCAieDVjIjogWyJNSUlDQWpDQ0Fha0NGRmUyTVRZVX
+    JYMjhVN2FYSm9XemIrWEYzcTlyTUFvR0NDcUdTTTQ5QkFNQ01IQXhDekFKQmdOVkJBWVRBa1JGTVE4d0
+    RRWURWUVFJREFaQ1pYSnNhVzR4RHpBTkJnTlZCQWNNQmtKbGNteHBiakVRTUE0R0ExVUVDZ3dIWjJWdF
+    lYUnBhekVRTUE0R0ExVUVDd3dIWjJWdFlYUnBhekViTUJrR0ExVUVBd3dTUzI5dGNHOXVaVzUwWlc0dF
+    VFdEpMVU5CTUI0WERUSXlNRE13TVRFek5USXpPRm9YRFRJek1ETXdNVEV6TlRJek9Gb3dnWll4Q3pBSk
+    JnTlZCQVlUQWtSRk1ROHdEUVlEVlFRSURBWkNaWEpzYVc0eER6QU5CZ05WQkFjTUJrSmxjbXhwYmpFWU
+    1CWUdBMVVFQ2d3UFpWQkJJRUZyZEdWdWMzbHpkR1Z0TVNFd0h3WURWUVFMREJoTGIyMXdiMjVsYm5SbE
+    lFRjFkRzl5YVhOcFpYSjFibWN4S0RBbUJnTlZCQU1NSDJWUVFTMUJVeUJMYjIxd2IyNWxiblJsSUVGMW
+    RHOXlhWE5wWlhKMWJtY3dXakFVQmdjcWhrak9QUUlCQmdrckpBTURBZ2dCQVFjRFFnQUVraytOUDY4QW
+    VVMXR6cis1UEFVZWtwWjNyTGtqU2h2ODhVSkpEQkFTSDh4emlYTU84TW1aU0p5SHZXRng0NlB4Rm80SU
+    5CZmErcmh2dXBUTkhmbm9WakFLQmdncWhrak9QUVFEQWdOSEFEQkVBaUI5ZXpNMEtBckIwWU9XVi9YeG
+    V6eDhYNTVtdi9ZN1Rld2dxRUJSS0psV2xnSWdJckdZa1QvdStZWjdieStVOE5lVHAzN28xWkZRMkJ2NS
+    tLL3paZGlmQUFjPSJdfQ.eyJ3biI6ICJNajlzb0JZVUNhU2Jmajc0TUxjWWhwaGZUUHM0OTlzTDFRZWF
+    wR2VhRDlNPSIsICJuYmYiOiAxNjQ5OTE0NDE3LjU4OTU0NCwgImlhdCI6IDE2NDk5MTQ0MTcuNTg5NTQ
+    0LCAiZXhwIjogMTY1MDAwMDgxNy41ODk1NDR9.MEQCIBqs9ifzol7F9a1sd4RoFL_DbP9D5CQip8BN8N
+    v34EUrAiAysi0HyFkgMhRamYt58KeMFmFgd86aoAquwQnaQJX1cw 
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+    Im Body von (1) befindet sich:
+    {
+        "dp": "ARcMxZ3OgbrYWPmQqgBWYcvgs9wdUfxb1ei4AOGaZjkIGmE7cLOXvCyNIpouaC/4qXg1xjd4LtEvfyUWQy20aO4FY2folW0f987URLT1bWyI/8kLxdZN5C1YzwhPxRIT/fTyegyLcQ==",
+        "exp": 1650000817.589544,
+        "iat": 1649914417.589544,
+        "nbf": 1649914417.589544,
+        "vst_cert_hash": "Bmr35ND3w5keoK1QtUSK6ckD/u3tAaru6HnhF1M8V6s=",
+        "wn": "Mj9soBYUCaSbfj74MLcYhphfTPs499sL1QeapGeaD9M="
+    }
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+    Das signierte Tupel (s. o.) sende ich jetzt an die Vertrauensstelle.
+    Response-Code: 201
+    Ergebnis:
+    {'status': 'ok'}
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+    Jetzt verschlüssele ich mein MIO für das FDZ und sende es an das FDZ inkl. AN
+    Hex-Dump des Chiffrats was ich gleich auf http://127.0.0.1:20003/v1/epa/mio/50351ab26628ee7c4af6617e0ba677648ab879b4e1885ac86f516e69b41a6409 POST-te:
+    012007350a04a9530cdcb0c96f99c6bf7a435acf000be7a971aca89bca30243a6686d156ff36
+    0ada27db05ad03fe2c7c3d15ceb4902b08baecb7bba0fdca03f1ddab0d806f7018cdd7c273e63a59
+    2276ff4b654dae8366a2fe66c8e6a60c1c923061f5cca030a45796600028422e8caf1ff1000740d7
+    ad082e99e13d29bb2bfb4e3ea64ea4cb54120fa5b4f151ad90a3eb5929083d3b29805a7fda6795d7
+    5d1cb491b2f20d00f8c0b31ca7a57b749700eb9fcaf2f110dfa7aa166b03b84fdac6bb5900d1e1
+    Response-Code: 201
+    Ergebnis:
+    {'status': 'ok'}
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+    Jetzt widerrufe ich die Datenfreigabe wieder für das eben freigegebene MIO
+    Response-Code: 202
+    Ergebnis:
+    {'status': 'ok'}
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+# License
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+Licensed under the Apache License, Version 2.0 (the "License"); you may not use this file except in compliance with the
+License. You may obtain a copy of the License at
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+http://www.apache.org/licenses/LICENSE-2.0
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an "
+AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific
+language governing permissions and limitations under the License.
