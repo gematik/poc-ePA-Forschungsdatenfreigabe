@@ -7,11 +7,11 @@ servers:
   - url: http://api.example.com/v1
     description: hier kommt später noch die echte URL rein
 paths:
-  /epa/signed_an_lp:
+  /v1/epa/signed_wn_dp
     post:
       summary: |
         Das FdV lädt das vom AS (Komponente Autorisierung) erstellte 
-        signierte Tupel (AN+LP) zur VST hoch.
+        signierte Tupel (WN+DP) zur VST hoch.
       parameters:
         - in: header
           name: Proxy-Header
@@ -29,3 +29,23 @@ paths:
       responses: 
         '201':
           description: Created
+
+  /v1/epa/certificate
+    get:
+      summary: |
+        Liefert das aktuell Verschlüsselungszertifikat der Vertrauensstelle.
+        Das Zertifikat ist ein ENC-Zertifikat (FD.ENC) aus der TI-PKI 
+        mit der OID oid_epa_vst
+      responses:
+        200:
+          description: OK
+          content:
+            application/pkix-cert:
+              schema:
+                type: string
+                format: DER
+        500:
+          $ref: '#/components/responses/InternalServerError'
+        404:
+          $ref: '#/components/responses/NotFound'
+

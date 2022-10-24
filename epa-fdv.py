@@ -1,7 +1,7 @@
 #! /usr/bin/env python3
 # -*- coding: UTF-8 -*-
 
-import base64, json, hashlib, requests, secrets, sys
+import base64, json, hashlib, requests, secrets, sys, time
 from datetime import datetime, timedelta
 
 from binascii import hexlify, unhexlify
@@ -30,12 +30,23 @@ if __name__ == '__main__':
     # eingeloggt bin.
 
     print(f"Beim AS ({AS_URL_1}) (1) ein signiertes AN+LP-Tupel und",
-          " (2) signierte AN beziehen.")
-    response = requests.get(
-                    AS_URL_1,
-                    headers={"SOAP_Access_Token" : "...AC-Token..."},
-                    timeout=5
-                )
+          " (2) eine signierte AN beziehen.")
+
+    as_server_online = False
+    while not as_server_online:
+        try:
+            response = requests.get(
+                            AS_URL_1,
+                            headers={"SOAP_Access_Token" : "...AC-Token..."},
+                            timeout=5
+                        )
+        # https://stackoverflow.com/questions/16511337/correct-way-to-try-except-using-python-requests-module
+        except requests.exceptions.RequestException:
+            print("AS HTTP Server ist noch nicht vollständig gestartet ... 5 Sekunden warten")
+            time.sleep(5)
+        else:
+            as_server_online = True
+
     assert response.status_code == requests.codes.ok
     [signed_wn_dp_tupel, signed_wn] = response.json(); 
     print("\nErgebnis: (1)", signed_wn_dp_tupel)

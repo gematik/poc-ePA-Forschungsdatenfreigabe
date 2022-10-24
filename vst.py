@@ -10,6 +10,7 @@ from collections import defaultdict
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric import ec
+from cryptography.hazmat.primitives.asymmetric.utils import encode_dss_signature
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
@@ -57,9 +58,13 @@ def post_signed_wn_dp():
         public_key = as_cert.public_key()
 
         try:
-            signature = jb64d(ar[-1])
+            rfc_7515_signature = jb64d(ar[-1])
+            assert len(rfc_7515_signature) == 64
+            r = int.from_bytes(rfc_7515_signature[0:32], byteorder="big", signed=False)
+            s = int.from_bytes(rfc_7515_signature[32:], byteorder="big", signed=False)
+            signature = encode_dss_signature(r,s)
             # Signatur des AS prüfen 
-            public_key.verify(signature, ar[1].encode(), ec.ECDSA(hashes.SHA256()))
+            public_key.verify(signature, (ar[0]+"."+ar[1]).encode(), ec.ECDSA(hashes.SHA256()))
             my_body = json.loads(jb64d(ar[1]))
             my_body = defaultdict(lambda: "", my_body)
         except InvalidSignature:
