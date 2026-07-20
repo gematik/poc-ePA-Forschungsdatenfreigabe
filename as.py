@@ -17,7 +17,7 @@ FDZ.
 import base64, hashlib, json, secrets, jwt
 
 from binascii import unhexlify, hexlify
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from flask import Flask, jsonify, request
 
@@ -98,7 +98,7 @@ def my_token():
                          password=None, backend=default_backend())
 
     # JSON Web Signature https://datatracker.ietf.org/doc/html/rfc7515
-    my_now = datetime.utcnow()
+    my_now = datetime.now(timezone.utc)
     my_exp = my_now + timedelta(hours=24)
 
     body = { "wn"   : base64.b64encode(an).decode(),
@@ -131,4 +131,5 @@ def my_token():
 if __name__ == '__main__':
 
     app.run(port=20001, debug=True)
+
 
